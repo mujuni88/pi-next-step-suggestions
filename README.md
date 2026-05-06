@@ -1,5 +1,7 @@
 # pi-next-step-suggestions
 
+[![npm version](https://img.shields.io/npm/v/pi-next-step-suggestions.svg)](https://www.npmjs.com/package/pi-next-step-suggestions)
+
 A Pi package that offers LLM-generated next-step suggestions after the assistant responds.
 
 ## Behavior
@@ -59,6 +61,14 @@ Fields:
 - `background.enabled`: enable/disable background suggestion generation after assistant responses.
 
 ## Install
+
+Public npm package:
+
+```bash
+pi install npm:pi-next-step-suggestions
+```
+
+Source package from GitHub:
 
 ```bash
 pi install git:github.com/mujuni88/pi-next-step-suggestions
