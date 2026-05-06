@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildChipLabels,
+  CHIP_HINT,
   createSuggestionStore,
   filterSuggestions,
   normalizeSuggestions,
@@ -59,6 +61,19 @@ describe("normalizeSuggestions", () => {
 
     expect(result.map((item) => item.prompt)).toEqual(["one", "two"]);
   });
+
+  it("keeps chip titles and descriptions succinct", () => {
+    const result = normalizeSuggestions([
+      {
+        title: "Continue implementing the entire feature with every detail included",
+        prompt: "Continue implementing the agreed chip UI.",
+        description: "This is a very long explanation that should be shortened because picker descriptions need to stay compact.",
+      },
+    ]);
+
+    expect(result[0]?.title.length).toBeLessThanOrEqual(28);
+    expect(result[0]?.description?.length).toBeLessThanOrEqual(60);
+  });
 });
 
 describe("filterSuggestions", () => {
@@ -72,6 +87,19 @@ describe("filterSuggestions", () => {
     const suggestions = normalizeSuggestions([{ prompt: "Continue implementation" }, { prompt: "Write tests" }]);
 
     expect(filterSuggestions(suggestions, "test").map((item) => item.prompt)).toEqual(["Write tests"]);
+  });
+});
+
+describe("buildChipLabels", () => {
+  it("formats numbered chip labels and keeps the compact hint", () => {
+    const suggestions = normalizeSuggestions([
+      { title: "Continue fix", prompt: "Continue fixing this." },
+      { title: "Add tests", prompt: "Add tests." },
+      { title: "Explain tradeoffs", prompt: "Explain tradeoffs." },
+    ]);
+
+    expect(buildChipLabels(suggestions)).toEqual(["1 Continue fix", "2 Add tests", "3 Explain tradeoffs"]);
+    expect(CHIP_HINT).toBe("Alt+1-5 insert • Ctrl+Shift+N more");
   });
 });
 

@@ -10,9 +10,13 @@ import {
   type SelectItem,
   SelectList,
   Text,
+  truncateToWidth,
+  visibleWidth,
 } from "@mariozechner/pi-tui";
 import {
+  buildChipLabels,
   buildSuggestionRequest,
+  CHIP_HINT,
   createSuggestionStore,
   filterSuggestions,
   NEXT_STEP_SYSTEM_PROMPT,
@@ -23,10 +27,14 @@ import {
 const GENERATION_TIMEOUT_MS = 15_000;
 const RECENT_MESSAGE_LIMIT = 8;
 const MAX_CONVERSATION_CHARS = 12_000;
+const MAX_CHIP_SUGGESTIONS = 5;
+const WIDGET_ID = "next-step-suggestions";
 
 type Eligibility =
   | { ok: true; key: string; conversation: string }
   | { ok: false; reason: "no-model" | "no-conversation" | "assistant-incomplete" };
+
+type VisibleSuggestions = { key: string; suggestions: NextStepSuggestion[] };
 
 type SuggestionGetter = (
   ctx: ExtensionContext,
@@ -36,6 +44,7 @@ type SuggestionGetter = (
 
 export default function nextStepSuggestions(pi: ExtensionAPI): void {
   const suggestionStore = createSuggestionStore();
+  let visibleSuggestions: VisibleSuggestions | undefined;
 
   async function getSuggestions(
     ctx: ExtensionContext,
@@ -47,9 +56,67 @@ export default function nextStepSuggestions(pi: ExtensionAPI): void {
     );
   }
 
+  async function refreshSuggestionChips(ctx: ExtensionContext): Promise<void> {
+    if (!ctx.hasUI) return;
+
+    const eligibility = getEligibility(ctx);
+    if (!eligibility.ok) {
+      visibleSuggestions = undefined;
+      ctx.ui.setWidget(WIDGET_ID, undefined);
+      return;
+    }
+
+    visibleSuggestions = undefined;
+    setLoadingWidget(ctx);
+
+    try {
+      const suggestions = await getSuggestions(ctx, eligibility, undefined);
+      const latestEligibility = getEligibility(ctx);
+      if (!latestEligibility.ok || latestEligibility.key !== eligibility.key) return;
+
+      const nextVisibleSuggestions = suggestions.slice(0, MAX_CHIP_SUGGESTIONS);
+      if (nextVisibleSuggestions.length === 0) {
+        visibleSuggestions = undefined;
+        ctx.ui.setWidget(WIDGET_ID, undefined);
+        return;
+      }
+
+      visibleSuggestions = { key: eligibility.key, suggestions: nextVisibleSuggestions };
+      setSuggestionsWidget(ctx, nextVisibleSuggestions);
+    } catch {
+      const latestEligibility = getEligibility(ctx);
+      if (latestEligibility.ok && latestEligibility.key === eligibility.key) {
+        visibleSuggestions = undefined;
+        ctx.ui.setWidget(WIDGET_ID, undefined);
+      }
+    }
+  }
+
+  function insertVisibleSuggestion(ctx: ExtensionContext, index: number): void {
+    const eligibility = getEligibility(ctx);
+    if (!eligibility.ok || visibleSuggestions?.key !== eligibility.key) {
+      ctx.ui.notify("No next-step suggestion ready yet", "info");
+      return;
+    }
+
+    const suggestion = visibleSuggestions.suggestions[index];
+    if (!suggestion) {
+      ctx.ui.notify("No suggestion for that shortcut", "info");
+      return;
+    }
+
+    ctx.ui.setEditorText(suggestion.prompt);
+    ctx.ui.notify("Suggestion inserted. Edit and submit when ready.", "info");
+  }
+
   pi.on("session_start", (_event, ctx) => {
     if (!ctx.hasUI) return;
     ctx.ui.addAutocompleteProvider((current) => createAutocompleteProvider(current, ctx, getSuggestions));
+    void refreshSuggestionChips(ctx);
+  });
+
+  pi.on("agent_end", async (_event, ctx) => {
+    await refreshSuggestionChips(ctx);
   });
 
   pi.registerShortcut(Key.ctrlShift("n"), {
@@ -58,6 +125,17 @@ export default function nextStepSuggestions(pi: ExtensionAPI): void {
       if (!ctx.hasUI) return;
       await showSuggestionPicker(ctx, getSuggestions);
     },
+  });
+
+  const chipShortcutKeys = ["1", "2", "3", "4", "5"] as const;
+  chipShortcutKeys.forEach((key, index) => {
+    pi.registerShortcut(Key.alt(key), {
+      description: `Insert next-step suggestion ${index + 1}`,
+      handler: async (ctx) => {
+        if (!ctx.hasUI) return;
+        insertVisibleSuggestion(ctx, index);
+      },
+    });
   });
 }
 
@@ -189,6 +267,40 @@ async function showSuggestionPicker(ctx: ExtensionContext, getSuggestions: Sugge
   if (!selected) return;
   ctx.ui.setEditorText(selected.prompt);
   ctx.ui.notify("Suggestion inserted. Edit and submit when ready.", "info");
+}
+
+function setLoadingWidget(ctx: ExtensionContext): void {
+  ctx.ui.setWidget(WIDGET_ID, (_tui, theme) => ({
+    render(width: number) {
+      return [truncateToWidth(theme.fg("dim", "Next: generating suggestions…"), width)];
+    },
+    invalidate() {},
+  }));
+}
+
+function setSuggestionsWidget(ctx: ExtensionContext, suggestions: NextStepSuggestion[]): void {
+  ctx.ui.setWidget(WIDGET_ID, (_tui, theme) => ({
+    render(width: number) {
+      const prefix = theme.fg("dim", "Next: ");
+      const chips = buildChipLabels(suggestions, MAX_CHIP_SUGGESTIONS)
+        .map((label) => theme.bg("selectedBg", theme.fg("accent", ` ${label} `)))
+        .join(" ");
+      const hint = theme.fg("dim", CHIP_HINT);
+      const left = `${prefix}${chips}`;
+      const gapWidth = width - visibleWidth(left) - visibleWidth(hint);
+
+      if (gapWidth >= 2) {
+        return [`${left}${" ".repeat(gapWidth)}${hint}`];
+      }
+
+      if (visibleWidth(left) <= width) {
+        return [left];
+      }
+
+      return [truncateToWidth(left, width)];
+    },
+    invalidate() {},
+  }));
 }
 
 function getEligibility(ctx: ExtensionContext): Eligibility {

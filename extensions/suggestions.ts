@@ -8,6 +8,9 @@ type RawSuggestion = Partial<NextStepSuggestion> & { text?: string; value?: stri
 
 export const DEFAULT_MAX_SUGGESTIONS = 5;
 export const MAX_SUGGESTION_LENGTH = 240;
+export const MAX_TITLE_LENGTH = 28;
+export const MAX_DESCRIPTION_LENGTH = 60;
+export const CHIP_HINT = "Alt+1-5 insert • Ctrl+Shift+N more";
 
 export const NEXT_STEP_SYSTEM_PROMPT = `You generate concise next-step options for a user in a Pi coding-agent conversation.
 
@@ -17,6 +20,8 @@ Rules:
 - Base suggestions on the recent conversation.
 - Include a natural continuation option when appropriate.
 - Include alternatives only when they are meaningfully different.
+- Keep each title to 2-4 words and under 28 characters.
+- Keep descriptions under 8 words and under 60 characters.
 - Return strict JSON with this shape: {"suggestions":[{"title":"short label","prompt":"message to insert","description":"brief reason"}]}.
 - Return 3 to 5 suggestions.`;
 
@@ -49,9 +54,9 @@ export function normalizeSuggestions(
     const title = cleanText(raw.title ?? prompt);
     const description = cleanText(raw.description ?? "") || undefined;
     normalized.push({
-      title: truncate(title, 80),
+      title: truncate(title, MAX_TITLE_LENGTH),
       prompt: truncate(prompt, MAX_SUGGESTION_LENGTH),
-      description: description ? truncate(description, 120) : undefined,
+      description: description ? truncate(description, MAX_DESCRIPTION_LENGTH) : undefined,
     });
 
     if (normalized.length >= maxSuggestions) break;
@@ -67,6 +72,10 @@ export function filterSuggestions(suggestions: NextStepSuggestion[], query: stri
     const haystack = `${item.title} ${item.prompt} ${item.description ?? ""}`.toLowerCase();
     return haystack.includes(normalizedQuery);
   });
+}
+
+export function buildChipLabels(suggestions: NextStepSuggestion[], maxSuggestions = DEFAULT_MAX_SUGGESTIONS): string[] {
+  return suggestions.slice(0, maxSuggestions).map((suggestion, index) => `${index + 1} ${suggestion.title}`);
 }
 
 export function buildSuggestionRequest(conversation: string): string {
