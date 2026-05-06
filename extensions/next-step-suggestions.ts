@@ -31,7 +31,6 @@ import {
 
 const CONFIG_DIR = "pi-suggest";
 const CONFIG_FILENAME = "config.json";
-const LEGACY_CONFIG_FILENAME = "next-step-suggestions.json";
 const RECENT_MESSAGE_LIMIT = 8;
 const MAX_CONVERSATION_CHARS = 12_000;
 const MAX_SHORTCUT_SUGGESTIONS = 5;
@@ -301,14 +300,8 @@ async function showSuggestionPicker(ctx: ExtensionContext, getSuggestions: Sugge
 
 function loadConfig(cwd: string | undefined): NextStepSuggestionsConfig {
   const paths = [
-    join(getAgentDir(), LEGACY_CONFIG_FILENAME),
     join(getAgentDir(), CONFIG_DIR, CONFIG_FILENAME),
-    ...(cwd
-      ? [
-          join(cwd, ".pi", LEGACY_CONFIG_FILENAME),
-          join(cwd, ".pi", CONFIG_DIR, CONFIG_FILENAME),
-        ]
-      : []),
+    ...(cwd ? [join(cwd, ".pi", CONFIG_DIR, CONFIG_FILENAME)] : []),
   ];
 
   let config = normalizeConfig(undefined);

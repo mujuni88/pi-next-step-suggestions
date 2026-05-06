@@ -22,7 +22,7 @@ Optional config files are loaded from:
 - `~/.pi/agent/pi-suggest/config.json`
 - `<project>/.pi/pi-suggest/config.json`
 
-Project config overrides global config. Legacy `next-step-suggestions.json` files are still read as a fallback during migration.
+Project config overrides global config.
 
 Public defaults use the current active Pi model only. A complete config with every available option looks like this:
 
