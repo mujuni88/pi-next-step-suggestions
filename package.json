@@ -1,7 +1,7 @@
 {
   "name": "pi-suggest",
   "version": "0.1.0",
-  "description": "LLM-generated next-step suggestions for Pi autocomplete and picker UI.",
+  "description": "LLM-generated next-step suggestions for Pi autocomplete, chips, and picker UI.",
   "type": "module",
   "keywords": [
     "pi-package",
