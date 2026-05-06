@@ -4,13 +4,52 @@ export type NextStepSuggestion = {
   description?: string;
 };
 
+export type ModelPreference = string;
+
+export type NextStepSuggestionsConfig = {
+  suggestionCount: number;
+  modelPreference: ModelPreference[];
+  timeoutMs: number;
+  chips: {
+    enabled: boolean;
+    hint?: string;
+  };
+  autocomplete: {
+    enabled: boolean;
+  };
+  picker: {
+    enabled: boolean;
+  };
+  background: {
+    enabled: boolean;
+  };
+};
+
 type RawSuggestion = Partial<NextStepSuggestion> & { text?: string; value?: string };
 
-export const DEFAULT_MAX_SUGGESTIONS = 5;
+type RawConfig = Partial<NextStepSuggestionsConfig> & {
+  chips?: Partial<NextStepSuggestionsConfig["chips"]>;
+  autocomplete?: Partial<NextStepSuggestionsConfig["autocomplete"]>;
+  picker?: Partial<NextStepSuggestionsConfig["picker"]>;
+  background?: Partial<NextStepSuggestionsConfig["background"]>;
+};
+
+export const DEFAULT_MAX_SUGGESTIONS = 3;
+export const MAX_CONFIGURED_SUGGESTIONS = 5;
 export const MAX_SUGGESTION_LENGTH = 240;
 export const MAX_TITLE_LENGTH = 28;
 export const MAX_DESCRIPTION_LENGTH = 60;
-export const CHIP_HINT = "Alt+1-5 insert • Ctrl+Shift+N more";
+export const DEFAULT_TIMEOUT_MS = 5_000;
+
+export const DEFAULT_CONFIG: NextStepSuggestionsConfig = {
+  suggestionCount: DEFAULT_MAX_SUGGESTIONS,
+  modelPreference: ["current"],
+  timeoutMs: DEFAULT_TIMEOUT_MS,
+  chips: { enabled: true },
+  autocomplete: { enabled: true },
+  picker: { enabled: true },
+  background: { enabled: true },
+};
 
 export const NEXT_STEP_SYSTEM_PROMPT = `You generate concise next-step options for a user in a Pi coding-agent conversation.
 
@@ -23,7 +62,41 @@ Rules:
 - Keep each title to 2-4 words and under 28 characters.
 - Keep descriptions under 8 words and under 60 characters.
 - Return strict JSON with this shape: {"suggestions":[{"title":"short label","prompt":"message to insert","description":"brief reason"}]}.
-- Return 3 to 5 suggestions.`;
+- Return 3 concise suggestions unless the user config asks for fewer or more.`;
+
+export function normalizeConfig(raw: unknown): NextStepSuggestionsConfig {
+  if (!isRecord(raw)) return structuredCloneConfig(DEFAULT_CONFIG);
+  const input = raw as RawConfig;
+  const suggestionCount = normalizeSuggestionCount(input.suggestionCount);
+  const modelPreference = normalizeModelPreference(input.modelPreference);
+
+  return {
+    suggestionCount,
+    modelPreference,
+    timeoutMs: normalizeTimeout(input.timeoutMs),
+    chips: {
+      enabled: typeof input.chips?.enabled === "boolean" ? input.chips.enabled : DEFAULT_CONFIG.chips.enabled,
+      hint: typeof input.chips?.hint === "string" && input.chips.hint.trim() ? input.chips.hint.trim() : undefined,
+    },
+    autocomplete: {
+      enabled:
+        typeof input.autocomplete?.enabled === "boolean"
+          ? input.autocomplete.enabled
+          : DEFAULT_CONFIG.autocomplete.enabled,
+    },
+    picker: {
+      enabled: typeof input.picker?.enabled === "boolean" ? input.picker.enabled : DEFAULT_CONFIG.picker.enabled,
+    },
+    background: {
+      enabled:
+        typeof input.background?.enabled === "boolean" ? input.background.enabled : DEFAULT_CONFIG.background.enabled,
+    },
+  };
+}
+
+export function buildChipHint(config: Pick<NextStepSuggestionsConfig, "suggestionCount" | "chips">): string {
+  return config.chips.hint ?? `Alt+1-${config.suggestionCount} insert • Ctrl+Shift+N more`;
+}
 
 export function parseSuggestions(text: string): NextStepSuggestion[] {
   const jsonText = extractJson(text);
@@ -105,6 +178,36 @@ export function createSuggestionStore(): {
     clear() {
       cache = undefined;
     },
+  };
+}
+
+function normalizeSuggestionCount(value: unknown): number {
+  if (typeof value !== "number" || !Number.isInteger(value)) return DEFAULT_CONFIG.suggestionCount;
+  if (value < 1) return DEFAULT_CONFIG.suggestionCount;
+  return Math.min(value, MAX_CONFIGURED_SUGGESTIONS);
+}
+
+function normalizeTimeout(value: unknown): number {
+  if (typeof value !== "number" || !Number.isInteger(value)) return DEFAULT_CONFIG.timeoutMs;
+  if (value < 500) return DEFAULT_CONFIG.timeoutMs;
+  return Math.min(value, 30_000);
+}
+
+function normalizeModelPreference(value: unknown): ModelPreference[] {
+  if (!Array.isArray(value)) return [...DEFAULT_CONFIG.modelPreference];
+  const normalized = value.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean);
+  return normalized.length > 0 ? normalized : [...DEFAULT_CONFIG.modelPreference];
+}
+
+function structuredCloneConfig(config: NextStepSuggestionsConfig): NextStepSuggestionsConfig {
+  return {
+    suggestionCount: config.suggestionCount,
+    modelPreference: [...config.modelPreference],
+    timeoutMs: config.timeoutMs,
+    chips: { ...config.chips },
+    autocomplete: { ...config.autocomplete },
+    picker: { ...config.picker },
+    background: { ...config.background },
   };
 }
 

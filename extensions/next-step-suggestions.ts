@@ -1,6 +1,8 @@
-import { complete, type UserMessage } from "@mariozechner/pi-ai";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { complete, type Model, type UserMessage } from "@mariozechner/pi-ai";
 import type { ExtensionAPI, ExtensionContext, SessionEntry } from "@mariozechner/pi-coding-agent";
-import { BorderedLoader, DynamicBorder } from "@mariozechner/pi-coding-agent";
+import { BorderedLoader, DynamicBorder, getAgentDir } from "@mariozechner/pi-coding-agent";
 import {
   Container,
   Key,
@@ -14,20 +16,22 @@ import {
   visibleWidth,
 } from "@mariozechner/pi-tui";
 import {
+  buildChipHint,
   buildChipLabels,
   buildSuggestionRequest,
-  CHIP_HINT,
   createSuggestionStore,
   filterSuggestions,
   NEXT_STEP_SYSTEM_PROMPT,
   type NextStepSuggestion,
+  type NextStepSuggestionsConfig,
+  normalizeConfig,
   parseSuggestions,
 } from "./suggestions.js";
 
-const GENERATION_TIMEOUT_MS = 15_000;
+const CONFIG_FILENAME = "next-step-suggestions.json";
 const RECENT_MESSAGE_LIMIT = 8;
 const MAX_CONVERSATION_CHARS = 12_000;
-const MAX_CHIP_SUGGESTIONS = 5;
+const MAX_SHORTCUT_SUGGESTIONS = 5;
 const WIDGET_ID = "next-step-suggestions";
 
 type Eligibility =
@@ -45,6 +49,13 @@ type SuggestionGetter = (
 export default function nextStepSuggestions(pi: ExtensionAPI): void {
   const suggestionStore = createSuggestionStore();
   let visibleSuggestions: VisibleSuggestions | undefined;
+  let config = normalizeConfig(undefined);
+
+  function reloadConfig(ctx?: ExtensionContext): void {
+    config = loadConfig(ctx?.cwd);
+    suggestionStore.clear();
+    visibleSuggestions = undefined;
+  }
 
   async function getSuggestions(
     ctx: ExtensionContext,
@@ -52,12 +63,12 @@ export default function nextStepSuggestions(pi: ExtensionAPI): void {
     signal: AbortSignal | undefined,
   ): Promise<NextStepSuggestion[]> {
     return suggestionStore.getOrGenerate(eligibility.key, signal, () =>
-      generateSuggestions(ctx, eligibility.conversation, signal),
+      generateSuggestions(ctx, eligibility.conversation, config, signal),
     );
   }
 
   async function refreshSuggestionChips(ctx: ExtensionContext): Promise<void> {
-    if (!ctx.hasUI) return;
+    if (!ctx.hasUI || !config.chips.enabled || !config.background.enabled) return;
 
     const eligibility = getEligibility(ctx);
     if (!eligibility.ok) {
@@ -74,7 +85,7 @@ export default function nextStepSuggestions(pi: ExtensionAPI): void {
       const latestEligibility = getEligibility(ctx);
       if (!latestEligibility.ok || latestEligibility.key !== eligibility.key) return;
 
-      const nextVisibleSuggestions = suggestions.slice(0, MAX_CHIP_SUGGESTIONS);
+      const nextVisibleSuggestions = suggestions.slice(0, config.suggestionCount);
       if (nextVisibleSuggestions.length === 0) {
         visibleSuggestions = undefined;
         ctx.ui.setWidget(WIDGET_ID, undefined);
@@ -82,7 +93,7 @@ export default function nextStepSuggestions(pi: ExtensionAPI): void {
       }
 
       visibleSuggestions = { key: eligibility.key, suggestions: nextVisibleSuggestions };
-      setSuggestionsWidget(ctx, nextVisibleSuggestions);
+      setSuggestionsWidget(ctx, nextVisibleSuggestions, config);
     } catch {
       const latestEligibility = getEligibility(ctx);
       if (latestEligibility.ok && latestEligibility.key === eligibility.key) {
@@ -110,8 +121,11 @@ export default function nextStepSuggestions(pi: ExtensionAPI): void {
   }
 
   pi.on("session_start", (_event, ctx) => {
+    reloadConfig(ctx);
     if (!ctx.hasUI) return;
-    ctx.ui.addAutocompleteProvider((current) => createAutocompleteProvider(current, ctx, getSuggestions));
+    if (config.autocomplete.enabled) {
+      ctx.ui.addAutocompleteProvider((current) => createAutocompleteProvider(current, ctx, getSuggestions, config));
+    }
     void refreshSuggestionChips(ctx);
   });
 
@@ -119,10 +133,19 @@ export default function nextStepSuggestions(pi: ExtensionAPI): void {
     await refreshSuggestionChips(ctx);
   });
 
+  pi.registerCommand("next-step-suggestions-reload", {
+    description: "Reload next-step suggestions config",
+    handler: async (_args, ctx) => {
+      reloadConfig(ctx);
+      ctx.ui.notify("Reloaded next-step suggestions config", "info");
+      await refreshSuggestionChips(ctx);
+    },
+  });
+
   pi.registerShortcut(Key.ctrlShift("n"), {
     description: "Show LLM-generated next-step suggestions",
     handler: async (ctx) => {
-      if (!ctx.hasUI) return;
+      if (!ctx.hasUI || !config.picker.enabled) return;
       await showSuggestionPicker(ctx, getSuggestions);
     },
   });
@@ -143,6 +166,7 @@ function createAutocompleteProvider(
   current: AutocompleteProvider,
   ctx: ExtensionContext,
   getSuggestions: SuggestionGetter,
+  config: NextStepSuggestionsConfig,
 ): AutocompleteProvider {
   return {
     async getSuggestions(lines, cursorLine, cursorCol, options): Promise<AutocompleteSuggestions | null> {
@@ -161,7 +185,10 @@ function createAutocompleteProvider(
       }
 
       try {
-        const suggestions = filterSuggestions(await getSuggestions(ctx, eligibility, options.signal), query);
+        const suggestions = filterSuggestions(await getSuggestions(ctx, eligibility, options.signal), query).slice(
+          0,
+          config.suggestionCount,
+        );
         if (options.signal.aborted || suggestions.length === 0) {
           return current.getSuggestions(lines, cursorLine, cursorCol, options);
         }
@@ -269,6 +296,24 @@ async function showSuggestionPicker(ctx: ExtensionContext, getSuggestions: Sugge
   ctx.ui.notify("Suggestion inserted. Edit and submit when ready.", "info");
 }
 
+function loadConfig(cwd: string | undefined): NextStepSuggestionsConfig {
+  const paths = [
+    join(getAgentDir(), CONFIG_FILENAME),
+    ...(cwd ? [join(cwd, ".pi", CONFIG_FILENAME)] : []),
+  ];
+
+  let config = normalizeConfig(undefined);
+  for (const path of paths) {
+    if (!existsSync(path)) continue;
+    try {
+      config = normalizeConfig({ ...config, ...JSON.parse(readFileSync(path, "utf8")) });
+    } catch {
+      // Ignore invalid config and keep the last valid config/defaults.
+    }
+  }
+  return config;
+}
+
 function setLoadingWidget(ctx: ExtensionContext): void {
   ctx.ui.setWidget(WIDGET_ID, (_tui, theme) => ({
     render(width: number) {
@@ -278,14 +323,18 @@ function setLoadingWidget(ctx: ExtensionContext): void {
   }));
 }
 
-function setSuggestionsWidget(ctx: ExtensionContext, suggestions: NextStepSuggestion[]): void {
+function setSuggestionsWidget(
+  ctx: ExtensionContext,
+  suggestions: NextStepSuggestion[],
+  config: NextStepSuggestionsConfig,
+): void {
   ctx.ui.setWidget(WIDGET_ID, (_tui, theme) => ({
     render(width: number) {
       const prefix = theme.fg("dim", "Next: ");
-      const chips = buildChipLabels(suggestions, MAX_CHIP_SUGGESTIONS)
+      const chips = buildChipLabels(suggestions, config.suggestionCount)
         .map((label) => theme.bg("selectedBg", theme.fg("accent", ` ${label} `)))
         .join(" ");
-      const hint = theme.fg("dim", CHIP_HINT);
+      const hint = theme.fg("dim", buildChipHint(config));
       const left = `${prefix}${chips}`;
       const gapWidth = width - visibleWidth(left) - visibleWidth(hint);
 
@@ -346,16 +395,13 @@ function getEligibility(ctx: ExtensionContext): Eligibility {
 async function generateSuggestions(
   ctx: ExtensionContext,
   conversation: string,
+  config: NextStepSuggestionsConfig,
   signal: AbortSignal | undefined,
 ): Promise<NextStepSuggestion[]> {
-  if (!ctx.model) return [];
+  const selected = await selectSuggestionModel(ctx, config.modelPreference);
+  if (!selected) return [];
 
-  const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model);
-  if (!auth.ok || !auth.apiKey) {
-    throw new Error(auth.ok ? `No API key for ${ctx.model.provider}` : auth.error);
-  }
-
-  const timeout = createTimeoutSignal(signal, GENERATION_TIMEOUT_MS);
+  const timeout = createTimeoutSignal(signal, config.timeoutMs);
   try {
     const userMessage: UserMessage = {
       role: "user",
@@ -364,9 +410,9 @@ async function generateSuggestions(
     };
 
     const response = await complete(
-      ctx.model,
+      selected.model,
       { systemPrompt: NEXT_STEP_SYSTEM_PROMPT, messages: [userMessage] },
-      { apiKey: auth.apiKey, headers: auth.headers, signal: timeout.signal },
+      { apiKey: selected.apiKey, headers: selected.headers, signal: timeout.signal },
     );
 
     if (response.stopReason === "aborted") {
@@ -378,10 +424,44 @@ async function generateSuggestions(
       .map((content) => content.text)
       .join("\n");
 
-    return parseSuggestions(text);
+    return parseSuggestions(text).slice(0, config.suggestionCount);
   } finally {
     timeout.dispose();
   }
+}
+
+async function selectSuggestionModel(
+  ctx: ExtensionContext,
+  modelPreference: string[],
+): Promise<{ model: Model<any>; apiKey?: string; headers?: Record<string, string> } | undefined> {
+  for (const preference of modelPreference) {
+    const model = resolvePreferredModel(ctx, preference);
+    if (!model) continue;
+
+    const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+    if (auth.ok) return { model, apiKey: auth.apiKey, headers: auth.headers };
+  }
+
+  if (!modelPreference.includes("current") && ctx.model) {
+    const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model);
+    if (auth.ok) return { model: ctx.model, apiKey: auth.apiKey, headers: auth.headers };
+  }
+
+  return undefined;
+}
+
+function resolvePreferredModel(ctx: ExtensionContext, preference: string): Model<any> | undefined {
+  if (preference === "current") return ctx.model;
+
+  const slash = preference.indexOf("/");
+  if (slash > 0) {
+    return ctx.modelRegistry.find(preference.slice(0, slash), preference.slice(slash + 1));
+  }
+
+  const query = preference.toLowerCase();
+  return ctx.modelRegistry
+    .getAll()
+    .find((model) => model.id.toLowerCase().includes(query) || `${model.provider}/${model.id}`.toLowerCase().includes(query));
 }
 
 function serializeRecentConversation(branch: SessionEntry[], latestAssistantIndex: number): string {

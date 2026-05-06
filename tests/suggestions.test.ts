@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildChipHint,
   buildChipLabels,
-  CHIP_HINT,
   createSuggestionStore,
+  DEFAULT_CONFIG,
   filterSuggestions,
+  normalizeConfig,
   normalizeSuggestions,
   parseSuggestions,
 } from "../extensions/suggestions.js";
@@ -39,6 +41,33 @@ describe("parseSuggestions", () => {
     expect(result).toEqual([
       { title: "Write the tests first.", prompt: "Write the tests first.", description: undefined },
     ]);
+  });
+});
+
+describe("normalizeConfig", () => {
+  it("defaults public package config to 3 suggestions and current model only", () => {
+    expect(DEFAULT_CONFIG.suggestionCount).toBe(3);
+    expect(DEFAULT_CONFIG.modelPreference).toEqual(["current"]);
+    expect(buildChipHint(DEFAULT_CONFIG)).toBe("Alt+1-3 insert • Ctrl+Shift+N more");
+  });
+
+  it("merges user config and clamps suggestion count", () => {
+    const result = normalizeConfig({
+      suggestionCount: 99,
+      modelPreference: ["nflx-openai/gpt-5-nano", "current"],
+      chips: { hint: "Alt+1-3" },
+    });
+
+    expect(result.suggestionCount).toBe(5);
+    expect(result.modelPreference).toEqual(["nflx-openai/gpt-5-nano", "current"]);
+    expect(buildChipHint(result)).toBe("Alt+1-3");
+  });
+
+  it("falls back to defaults for invalid config values", () => {
+    const result = normalizeConfig({ suggestionCount: 0, modelPreference: [] });
+
+    expect(result.suggestionCount).toBe(3);
+    expect(result.modelPreference).toEqual(["current"]);
   });
 });
 
@@ -96,10 +125,11 @@ describe("buildChipLabels", () => {
       { title: "Continue fix", prompt: "Continue fixing this." },
       { title: "Add tests", prompt: "Add tests." },
       { title: "Explain tradeoffs", prompt: "Explain tradeoffs." },
+      { title: "Create PR", prompt: "Create a PR." },
     ]);
 
-    expect(buildChipLabels(suggestions)).toEqual(["1 Continue fix", "2 Add tests", "3 Explain tradeoffs"]);
-    expect(CHIP_HINT).toBe("Alt+1-5 insert • Ctrl+Shift+N more");
+    expect(buildChipLabels(suggestions, 3)).toEqual(["1 Continue fix", "2 Add tests", "3 Explain tradeoffs"]);
+    expect(buildChipHint(DEFAULT_CONFIG)).toBe("Alt+1-3 insert • Ctrl+Shift+N more");
   });
 });
 
