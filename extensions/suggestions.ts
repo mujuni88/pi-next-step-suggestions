@@ -73,6 +73,32 @@ export function buildSuggestionRequest(conversation: string): string {
   return `Generate next-step suggestions for this Pi conversation.\n\n${conversation}`;
 }
 
+export function createSuggestionStore(): {
+  getOrGenerate: (
+    key: string,
+    signal: AbortSignal | undefined,
+    generate: () => Promise<NextStepSuggestion[]>,
+  ) => Promise<NextStepSuggestion[]>;
+  clear: () => void;
+} {
+  let cache: { key: string; suggestions: NextStepSuggestion[] } | undefined;
+
+  return {
+    async getOrGenerate(key, signal, generate): Promise<NextStepSuggestion[]> {
+      if (cache?.key === key) return cache.suggestions;
+
+      const suggestions = await generate();
+      if (!signal?.aborted) {
+        cache = { key, suggestions };
+      }
+      return suggestions;
+    },
+    clear() {
+      cache = undefined;
+    },
+  };
+}
+
 function extractJson(text: string): string | undefined {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenced?.[1]) return fenced[1].trim();

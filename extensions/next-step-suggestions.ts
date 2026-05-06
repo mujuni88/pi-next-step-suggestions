@@ -13,6 +13,7 @@ import {
 } from "@mariozechner/pi-tui";
 import {
   buildSuggestionRequest,
+  createSuggestionStore,
   filterSuggestions,
   NEXT_STEP_SYSTEM_PROMPT,
   type NextStepSuggestion,
@@ -34,25 +35,16 @@ type SuggestionGetter = (
 ) => Promise<NextStepSuggestion[]>;
 
 export default function nextStepSuggestions(pi: ExtensionAPI): void {
-  let cache: { key: string; suggestions: NextStepSuggestion[] } | undefined;
-  let inFlight: { key: string; promise: Promise<NextStepSuggestion[]> } | undefined;
+  const suggestionStore = createSuggestionStore();
 
   async function getSuggestions(
     ctx: ExtensionContext,
     eligibility: Extract<Eligibility, { ok: true }>,
     signal: AbortSignal | undefined,
   ): Promise<NextStepSuggestion[]> {
-    if (cache?.key === eligibility.key) return cache.suggestions;
-    if (inFlight?.key === eligibility.key) return inFlight.promise;
-
-    const promise = generateSuggestions(ctx, eligibility.conversation, signal).then((suggestions) => {
-      cache = { key: eligibility.key, suggestions };
-      if (inFlight?.key === eligibility.key) inFlight = undefined;
-      return suggestions;
-    });
-
-    inFlight = { key: eligibility.key, promise };
-    return promise;
+    return suggestionStore.getOrGenerate(eligibility.key, signal, () =>
+      generateSuggestions(ctx, eligibility.conversation, signal),
+    );
   }
 
   pi.on("session_start", (_event, ctx) => {
@@ -130,7 +122,7 @@ async function showSuggestionPicker(ctx: ExtensionContext, getSuggestions: Sugge
     getSuggestions(ctx, eligibility, loader.signal)
       .then(done)
       .catch((error: unknown) => {
-        generationError = error;
+        if (!loader.signal.aborted) generationError = error;
         done(null);
       });
 
@@ -265,7 +257,9 @@ async function generateSuggestions(
       { apiKey: auth.apiKey, headers: auth.headers, signal: timeout.signal },
     );
 
-    if (response.stopReason === "aborted") return [];
+    if (response.stopReason === "aborted") {
+      throw new Error("Suggestion generation aborted");
+    }
 
     const text = response.content
       .filter((content): content is { type: "text"; text: string } => content.type === "text")

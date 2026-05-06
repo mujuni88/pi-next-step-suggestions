@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { filterSuggestions, normalizeSuggestions, parseSuggestions } from "../extensions/suggestions.js";
+import {
+  createSuggestionStore,
+  filterSuggestions,
+  normalizeSuggestions,
+  parseSuggestions,
+} from "../extensions/suggestions.js";
 
 describe("parseSuggestions", () => {
   it("parses strict JSON suggestions", () => {
@@ -67,5 +72,47 @@ describe("filterSuggestions", () => {
     const suggestions = normalizeSuggestions([{ prompt: "Continue implementation" }, { prompt: "Write tests" }]);
 
     expect(filterSuggestions(suggestions, "test").map((item) => item.prompt)).toEqual(["Write tests"]);
+  });
+});
+
+describe("createSuggestionStore", () => {
+  it("does not cache a generation when the caller signal is aborted", async () => {
+    const store = createSuggestionStore();
+    const controller = new AbortController();
+    controller.abort();
+    let calls = 0;
+
+    const abortedResult = await store.getOrGenerate("assistant-1", controller.signal, async () => {
+      calls += 1;
+      return [];
+    });
+    const retryResult = await store.getOrGenerate("assistant-1", undefined, async () => {
+      calls += 1;
+      return normalizeSuggestions([{ prompt: "Continue from here." }]);
+    });
+
+    expect(abortedResult).toEqual([]);
+    expect(retryResult.map((item) => item.prompt)).toEqual(["Continue from here."]);
+    expect(calls).toBe(2);
+  });
+
+  it("does not retain a rejected generation for later requests", async () => {
+    const store = createSuggestionStore();
+    let calls = 0;
+
+    await expect(
+      store.getOrGenerate("assistant-1", undefined, async () => {
+        calls += 1;
+        throw new Error("provider failed");
+      }),
+    ).rejects.toThrow("provider failed");
+
+    const retryResult = await store.getOrGenerate("assistant-1", undefined, async () => {
+      calls += 1;
+      return normalizeSuggestions([{ prompt: "Try again." }]);
+    });
+
+    expect(retryResult.map((item) => item.prompt)).toEqual(["Try again."]);
+    expect(calls).toBe(2);
   });
 });
