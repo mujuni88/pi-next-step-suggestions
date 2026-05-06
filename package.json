@@ -13,7 +13,7 @@
     "extensions": ["./extensions"]
   },
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run --pool=threads --maxWorkers=1",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm test"
   },
