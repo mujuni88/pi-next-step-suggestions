@@ -103,7 +103,9 @@ export function parseSuggestions(text: string): NextStepSuggestion[] {
   if (jsonText) {
     const parsed = parseJsonSuggestions(jsonText);
     if (parsed.length > 0) return parsed;
+    if (looksLikeJson(text)) return [];
   }
+  if (looksLikeJson(text)) return [];
   return parseBulletSuggestions(text);
 }
 
@@ -215,6 +217,12 @@ function structuredCloneConfig(config: NextStepSuggestionsConfig): NextStepSugge
     picker: { ...config.picker },
     background: { ...config.background },
   };
+}
+
+
+function looksLikeJson(text: string): boolean {
+  const trimmed = text.trim();
+  return trimmed.startsWith("{") || trimmed.startsWith("[") || /^```json/i.test(trimmed);
 }
 
 function extractJson(text: string): string | undefined {

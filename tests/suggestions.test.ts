@@ -43,6 +43,12 @@ describe("parseSuggestions", () => {
       { title: "Write the tests first.", prompt: "Write the tests first.", description: undefined },
     ]);
   });
+
+  it("does not turn malformed JSON into a suggestion chip", () => {
+    const result = parseSuggestions('{"suggestions":[{"title":"Continue","prompt":"Continue from here."}');
+
+    expect(result).toEqual([]);
+  });
 });
 
 describe("normalizeConfig", () => {
