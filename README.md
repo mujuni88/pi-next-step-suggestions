@@ -22,21 +22,41 @@ Optional config files are loaded from:
 
 Project config overrides global config.
 
-Public defaults use the current active Pi model only:
+Public defaults use the current active Pi model only. A complete config with every available option looks like this:
 
 ```json
 {
   "suggestionCount": 3,
-  "modelPreference": ["current"],
+  "modelPreference": [
+    "current"
+  ],
   "timeoutMs": 5000,
-  "chips": { "enabled": true },
-  "autocomplete": { "enabled": true },
-  "picker": { "enabled": true },
-  "background": { "enabled": true }
+  "chips": {
+    "enabled": true,
+    "hint": "Alt+1-3 insert • Ctrl+Shift+N more"
+  },
+  "autocomplete": {
+    "enabled": true
+  },
+  "picker": {
+    "enabled": true
+  },
+  "background": {
+    "enabled": true
+  }
 }
 ```
 
-`modelPreference` accepts either `"current"`, a full `provider/model-id` string, or a substring such as `"nano"` that matches the first available model id/provider path.
+Fields:
+
+- `suggestionCount`: number of suggestions to show, clamped to `1` through `5`.
+- `modelPreference`: ordered model fallback list. Use `"current"`, a full `provider/model-id` string, or a substring such as `"nano"` that matches the first available model id/provider path.
+- `timeoutMs`: generation timeout, clamped to `500` through `30000` milliseconds.
+- `chips.enabled`: show/hide suggestion chips above the editor.
+- `chips.hint`: optional text shown on the far right of the chip row. If omitted, the hint is generated from `suggestionCount`.
+- `autocomplete.enabled`: enable/disable Tab autocomplete suggestions.
+- `picker.enabled`: enable/disable the `Ctrl+Shift+N` picker.
+- `background.enabled`: enable/disable background suggestion generation after assistant responses.
 
 ## Install
 
