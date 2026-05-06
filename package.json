@@ -3,8 +3,24 @@
   "version": "0.1.0",
   "description": "LLM-generated next-step suggestions for Pi autocomplete and picker UI.",
   "type": "module",
-  "keywords": ["pi-package", "pi", "extension", "autocomplete", "suggestions"],
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-extension",
+    "pi-coding-agent",
+    "extension",
+    "autocomplete",
+    "suggestions"
+  ],
   "license": "MIT",
+  "files": [
+    "README.md",
+    "extensions"
+  ],
+  "homepage": "https://github.com/mujuni88/pi-next-step-suggestions#readme",
+  "bugs": {
+    "url": "https://github.com/mujuni88/pi-next-step-suggestions/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mujuni88/pi-next-step-suggestions.git"
