@@ -49,7 +49,7 @@ describe("normalizeConfig", () => {
   it("defaults public package config to 3 suggestions and current model only", () => {
     expect(DEFAULT_CONFIG.suggestionCount).toBe(3);
     expect(DEFAULT_CONFIG.modelPreference).toEqual(["current"]);
-    expect(buildChipHint(DEFAULT_CONFIG)).toBe("Alt+1-3 insert • Ctrl+Shift+N more");
+    expect(buildChipHint(DEFAULT_CONFIG)).toBe("Alt+# insert • Ctrl+Shift+N more");
   });
 
   it("merges user config and clamps suggestion count", () => {
@@ -130,7 +130,7 @@ describe("buildChipLabels", () => {
     ]);
 
     expect(buildChipLabels(suggestions, 3)).toEqual(["1 Continue fix", "2 Add tests", "3 Explain tradeoffs"]);
-    expect(buildChipHint(DEFAULT_CONFIG)).toBe("Alt+1-3 insert • Ctrl+Shift+N more");
+    expect(buildChipHint(DEFAULT_CONFIG)).toBe("Alt+# insert • Ctrl+Shift+N more");
   });
 });
 

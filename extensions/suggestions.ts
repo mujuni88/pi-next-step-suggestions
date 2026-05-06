@@ -95,7 +95,7 @@ export function normalizeConfig(raw: unknown): NextStepSuggestionsConfig {
 }
 
 export function buildChipHint(config: Pick<NextStepSuggestionsConfig, "suggestionCount" | "chips">): string {
-  return config.chips.hint ?? `Alt+1-${config.suggestionCount} insert • Ctrl+Shift+N more`;
+  return config.chips.hint ?? "Alt+# insert • Ctrl+Shift+N more";
 }
 
 export function parseSuggestions(text: string): NextStepSuggestion[] {

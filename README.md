@@ -33,7 +33,7 @@ Public defaults use the current active Pi model only. A complete config with eve
   "timeoutMs": 5000,
   "chips": {
     "enabled": true,
-    "hint": "Alt+1-3 insert • Ctrl+Shift+N more"
+    "hint": "Alt+# insert • Ctrl+Shift+N more"
   },
   "autocomplete": {
     "enabled": true
