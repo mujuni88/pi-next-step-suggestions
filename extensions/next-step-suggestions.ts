@@ -24,6 +24,7 @@ import {
   NEXT_STEP_SYSTEM_PROMPT,
   type NextStepSuggestion,
   type NextStepSuggestionsConfig,
+  isAbortError,
   normalizeConfig,
   parseSuggestions,
 } from "./suggestions.js";
@@ -227,7 +228,7 @@ async function showSuggestionPicker(ctx: ExtensionContext, getSuggestions: Sugge
     getSuggestions(ctx, eligibility, loader.signal)
       .then(done)
       .catch((error: unknown) => {
-        if (!loader.signal.aborted) generationError = error;
+        if (!loader.signal.aborted && !isAbortError(error)) generationError = error;
         done(null);
       });
 

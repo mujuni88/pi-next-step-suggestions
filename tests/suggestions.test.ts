@@ -5,6 +5,7 @@ import {
   createSuggestionStore,
   DEFAULT_CONFIG,
   filterSuggestions,
+  isAbortError,
   normalizeConfig,
   normalizeSuggestions,
   parseSuggestions,
@@ -130,6 +131,14 @@ describe("buildChipLabels", () => {
 
     expect(buildChipLabels(suggestions, 3)).toEqual(["1 Continue fix", "2 Add tests", "3 Explain tradeoffs"]);
     expect(buildChipHint(DEFAULT_CONFIG)).toBe("Alt+1-3 insert • Ctrl+Shift+N more");
+  });
+});
+
+describe("isAbortError", () => {
+  it("recognizes suggestion generation aborts", () => {
+    expect(isAbortError(new Error("Suggestion generation aborted"))).toBe(true);
+    expect(isAbortError(new DOMException("The operation was aborted", "AbortError"))).toBe(true);
+    expect(isAbortError(new Error("provider failed"))).toBe(false);
   });
 });
 

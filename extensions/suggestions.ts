@@ -155,6 +155,12 @@ export function buildSuggestionRequest(conversation: string): string {
   return `Generate next-step suggestions for this Pi conversation.\n\n${conversation}`;
 }
 
+export function isAbortError(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === "AbortError") return true;
+  if (!(error instanceof Error)) return false;
+  return error.name === "AbortError" || /aborted|abort/i.test(error.message);
+}
+
 export function createSuggestionStore(): {
   getOrGenerate: (
     key: string,
