@@ -6,9 +6,9 @@ GitHub is the source of truth. npm is the public distribution channel.
 
 Configure the npm package to trust this GitHub Actions workflow:
 
-- npm package: `pi-next-step-suggestions`
+- npm package: `pi-suggest`
 - Repository owner: `mujuni88`
-- Repository name: `pi-next-step-suggestions`
+- Repository name: `pi-suggest`
 - Workflow file: `publish.yml`
 - Environment: leave blank unless the workflow later adds one
 
@@ -49,11 +49,11 @@ After Trusted Publishing is configured, no `NPM_TOKEN` GitHub secret is required
 6. Verify npm after the workflow completes:
 
    ```bash
-   npm view pi-next-step-suggestions version dist-tags --json
+   npm view pi-suggest version dist-tags --json
    ```
 
 7. Update local Pi's git package install when dogfooding the latest source:
 
    ```bash
-   pi update git:github.com/mujuni88/pi-next-step-suggestions
+   pi update git:github.com/mujuni88/pi-suggest
    ```

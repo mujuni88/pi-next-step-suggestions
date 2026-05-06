@@ -29,11 +29,13 @@ import {
   parseSuggestions,
 } from "./suggestions.js";
 
-const CONFIG_FILENAME = "next-step-suggestions.json";
+const CONFIG_DIR = "pi-suggest";
+const CONFIG_FILENAME = "config.json";
+const LEGACY_CONFIG_FILENAME = "next-step-suggestions.json";
 const RECENT_MESSAGE_LIMIT = 8;
 const MAX_CONVERSATION_CHARS = 12_000;
 const MAX_SHORTCUT_SUGGESTIONS = 5;
-const WIDGET_ID = "next-step-suggestions";
+const WIDGET_ID = "pi-suggest";
 
 type Eligibility =
   | { ok: true; key: string; conversation: string }
@@ -134,8 +136,8 @@ export default function nextStepSuggestions(pi: ExtensionAPI): void {
     await refreshSuggestionChips(ctx);
   });
 
-  pi.registerCommand("next-step-suggestions-reload", {
-    description: "Reload next-step suggestions config",
+  pi.registerCommand("pi-suggest-reload", {
+    description: "Reload pi-suggest config",
     handler: async (_args, ctx) => {
       reloadConfig(ctx);
       ctx.ui.notify("Reloaded next-step suggestions config", "info");
@@ -299,8 +301,14 @@ async function showSuggestionPicker(ctx: ExtensionContext, getSuggestions: Sugge
 
 function loadConfig(cwd: string | undefined): NextStepSuggestionsConfig {
   const paths = [
-    join(getAgentDir(), CONFIG_FILENAME),
-    ...(cwd ? [join(cwd, ".pi", CONFIG_FILENAME)] : []),
+    join(getAgentDir(), LEGACY_CONFIG_FILENAME),
+    join(getAgentDir(), CONFIG_DIR, CONFIG_FILENAME),
+    ...(cwd
+      ? [
+          join(cwd, ".pi", LEGACY_CONFIG_FILENAME),
+          join(cwd, ".pi", CONFIG_DIR, CONFIG_FILENAME),
+        ]
+      : []),
   ];
 
   let config = normalizeConfig(undefined);

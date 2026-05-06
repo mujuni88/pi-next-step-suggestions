@@ -1,6 +1,6 @@
-# pi-next-step-suggestions
+# pi-suggest
 
-[![npm version](https://img.shields.io/npm/v/pi-next-step-suggestions.svg)](https://www.npmjs.com/package/pi-next-step-suggestions)
+[![npm version](https://img.shields.io/npm/v/pi-suggest.svg)](https://www.npmjs.com/package/pi-suggest)
 
 A Pi package that offers LLM-generated next-step suggestions after the assistant responds.
 
@@ -19,10 +19,10 @@ A Pi package that offers LLM-generated next-step suggestions after the assistant
 
 Optional config files are loaded from:
 
-- `~/.pi/agent/next-step-suggestions.json`
-- `<project>/.pi/next-step-suggestions.json`
+- `~/.pi/agent/pi-suggest/config.json`
+- `<project>/.pi/pi-suggest/config.json`
 
-Project config overrides global config.
+Project config overrides global config. Legacy `next-step-suggestions.json` files are still read as a fallback during migration.
 
 Public defaults use the current active Pi model only. A complete config with every available option looks like this:
 
@@ -65,13 +65,13 @@ Fields:
 Public npm package:
 
 ```bash
-pi install npm:pi-next-step-suggestions
+pi install npm:pi-suggest
 ```
 
 Source package from GitHub:
 
 ```bash
-pi install git:github.com/mujuni88/pi-next-step-suggestions
+pi install git:github.com/mujuni88/pi-suggest
 ```
 
 ## Development

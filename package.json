@@ -1,5 +1,5 @@
 {
-  "name": "pi-next-step-suggestions",
+  "name": "pi-suggest",
   "version": "0.1.0",
   "description": "LLM-generated next-step suggestions for Pi autocomplete and picker UI.",
   "type": "module",
@@ -17,13 +17,13 @@
     "README.md",
     "extensions"
   ],
-  "homepage": "https://github.com/mujuni88/pi-next-step-suggestions#readme",
+  "homepage": "https://github.com/mujuni88/pi-suggest#readme",
   "bugs": {
-    "url": "https://github.com/mujuni88/pi-next-step-suggestions/issues"
+    "url": "https://github.com/mujuni88/pi-suggest/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mujuni88/pi-next-step-suggestions.git"
+    "url": "git+https://github.com/mujuni88/pi-suggest.git"
   },
   "pi": {
     "extensions": ["./extensions/next-step-suggestions.ts"]
