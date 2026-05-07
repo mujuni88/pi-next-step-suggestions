@@ -1,6 +1,6 @@
 {
   "name": "pi-suggest",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "LLM-generated next-step suggestions for Pi autocomplete, chips, and picker UI.",
   "type": "module",
   "keywords": [
@@ -26,7 +26,9 @@
     "url": "git+https://github.com/mujuni88/pi-suggest.git"
   },
   "pi": {
-    "extensions": ["./extensions/next-step-suggestions.ts"]
+    "extensions": [
+      "./extensions/next-step-suggestions.ts"
+    ]
   },
   "scripts": {
     "test": "vitest run --pool=threads --maxWorkers=1",
