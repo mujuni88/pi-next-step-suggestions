@@ -23,6 +23,9 @@ export type NextStepSuggestionsConfig = {
   background: {
     enabled: boolean;
   };
+  lifecycle: {
+    clearOnSubmit: boolean;
+  };
 };
 
 type RawSuggestion = Partial<NextStepSuggestion> & { text?: string; value?: string };
@@ -32,6 +35,7 @@ type RawConfig = Partial<NextStepSuggestionsConfig> & {
   autocomplete?: Partial<NextStepSuggestionsConfig["autocomplete"]>;
   picker?: Partial<NextStepSuggestionsConfig["picker"]>;
   background?: Partial<NextStepSuggestionsConfig["background"]>;
+  lifecycle?: Partial<NextStepSuggestionsConfig["lifecycle"]>;
 };
 
 export const DEFAULT_MAX_SUGGESTIONS = 3;
@@ -49,6 +53,7 @@ export const DEFAULT_CONFIG: NextStepSuggestionsConfig = {
   autocomplete: { enabled: true },
   picker: { enabled: true },
   background: { enabled: true },
+  lifecycle: { clearOnSubmit: true },
 };
 
 export const NEXT_STEP_SYSTEM_PROMPT = `You generate concise next-step options for a user in a Pi coding-agent conversation.
@@ -90,6 +95,12 @@ export function normalizeConfig(raw: unknown): NextStepSuggestionsConfig {
     background: {
       enabled:
         typeof input.background?.enabled === "boolean" ? input.background.enabled : DEFAULT_CONFIG.background.enabled,
+    },
+    lifecycle: {
+      clearOnSubmit:
+        typeof input.lifecycle?.clearOnSubmit === "boolean"
+          ? input.lifecycle.clearOnSubmit
+          : DEFAULT_CONFIG.lifecycle.clearOnSubmit,
     },
   };
 }
@@ -216,6 +227,7 @@ function structuredCloneConfig(config: NextStepSuggestionsConfig): NextStepSugge
     autocomplete: { ...config.autocomplete },
     picker: { ...config.picker },
     background: { ...config.background },
+    lifecycle: { ...config.lifecycle },
   };
 }
 

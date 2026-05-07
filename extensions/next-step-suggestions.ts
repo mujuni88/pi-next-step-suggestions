@@ -53,10 +53,20 @@ export default function nextStepSuggestions(pi: ExtensionAPI): void {
   let visibleSuggestions: VisibleSuggestions | undefined;
   let config = normalizeConfig(undefined);
 
+  function clearSuggestions(ctx: ExtensionContext): void {
+    visibleSuggestions = undefined;
+    suggestionStore.clear();
+    if (ctx.hasUI) ctx.ui.setWidget(WIDGET_ID, undefined);
+  }
+
   function reloadConfig(ctx?: ExtensionContext): void {
     config = loadConfig(ctx?.cwd);
-    suggestionStore.clear();
-    visibleSuggestions = undefined;
+    if (ctx) {
+      clearSuggestions(ctx);
+    } else {
+      suggestionStore.clear();
+      visibleSuggestions = undefined;
+    }
   }
 
   async function getSuggestions(
@@ -129,6 +139,10 @@ export default function nextStepSuggestions(pi: ExtensionAPI): void {
       ctx.ui.addAutocompleteProvider((current) => createAutocompleteProvider(current, ctx, getSuggestions, config));
     }
     void refreshSuggestionChips(ctx);
+  });
+
+  pi.on("before_agent_start", async (_event, ctx) => {
+    if (config.lifecycle.clearOnSubmit) clearSuggestions(ctx);
   });
 
   pi.on("agent_end", async (_event, ctx) => {

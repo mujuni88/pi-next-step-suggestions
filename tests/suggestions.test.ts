@@ -55,6 +55,7 @@ describe("normalizeConfig", () => {
   it("defaults public package config to 3 suggestions and current model only", () => {
     expect(DEFAULT_CONFIG.suggestionCount).toBe(3);
     expect(DEFAULT_CONFIG.modelPreference).toEqual(["current"]);
+    expect(DEFAULT_CONFIG.lifecycle.clearOnSubmit).toBe(true);
     expect(buildChipHint(DEFAULT_CONFIG)).toBe("Alt+# insert • Ctrl+Shift+N more");
   });
 
@@ -63,18 +64,21 @@ describe("normalizeConfig", () => {
       suggestionCount: 99,
       modelPreference: ["nflx-openai/gpt-5-nano", "current"],
       chips: { hint: "Alt+1-3" },
+      lifecycle: { clearOnSubmit: false },
     });
 
     expect(result.suggestionCount).toBe(5);
     expect(result.modelPreference).toEqual(["nflx-openai/gpt-5-nano", "current"]);
+    expect(result.lifecycle.clearOnSubmit).toBe(false);
     expect(buildChipHint(result)).toBe("Alt+1-3");
   });
 
   it("falls back to defaults for invalid config values", () => {
-    const result = normalizeConfig({ suggestionCount: 0, modelPreference: [] });
+    const result = normalizeConfig({ suggestionCount: 0, modelPreference: [], lifecycle: { clearOnSubmit: "no" } });
 
     expect(result.suggestionCount).toBe(3);
     expect(result.modelPreference).toEqual(["current"]);
+    expect(result.lifecycle.clearOnSubmit).toBe(true);
   });
 });
 

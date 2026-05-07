@@ -9,6 +9,7 @@ A Pi package that offers LLM-generated next-step suggestions after the assistant
 - No suggestions in a fresh empty session.
 - Suggestions become available after a user prompt receives a completed assistant response.
 - Suggestions are generated in the background and shown as compact chips above the editor.
+- Suggestions clear by default as soon as you submit the next prompt.
 - Shows 3 suggestions by default.
 - Use `Alt+1` through `Alt+3` to insert a visible chip suggestion by default.
 - Press Tab in an empty editor after a response to see the same suggestions through autocomplete.
@@ -45,6 +46,9 @@ Public defaults use the current active Pi model only. A complete config with eve
   },
   "background": {
     "enabled": true
+  },
+  "lifecycle": {
+    "clearOnSubmit": true
   }
 }
 ```
@@ -59,6 +63,7 @@ Fields:
 - `autocomplete.enabled`: enable/disable Tab autocomplete suggestions.
 - `picker.enabled`: enable/disable the `Ctrl+Shift+N` picker.
 - `background.enabled`: enable/disable background suggestion generation after assistant responses.
+- `lifecycle.clearOnSubmit`: clear visible suggestions and cached suggestions as soon as the user submits the next prompt. Defaults to `true`.
 
 ## Install
 
